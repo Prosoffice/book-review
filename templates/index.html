@@ -1,0 +1,16 @@
+{% extends 'layout.html' %}
+
+{% block title %}
+    Home
+{% endblock %}
+
+{% block main %}
+    <form action="/" method="post">
+        {{ form.hidden_tag() }}
+        <div class="form-group ">
+            {{ wtf.form_field(form.search) }}
+        </div>
+
+        <button class="btn btn-primary " type="submit">Search</button>
+    </form>
+{% endblock %}
