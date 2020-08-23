@@ -1,0 +1,16 @@
+{% extends "layout.html" %}
+
+{% block title %}
+    Result
+{% endblock %}
+
+{% block main %}
+<ul>
+{% for i in result %}
+
+    <li><p><a href="/book">{{ i[0] }}   {{    i[1] }}  {{ i[2] }}</a></p></li>
+
+{% endfor %}
+</ul>
+
+{% endblock %}

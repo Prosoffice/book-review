@@ -42,8 +42,6 @@ csrf = CSRFProtect(app)
 Bootstrap(app)
 
 
-
-
 # Ensure responses aren't cached
 @app.after_request
 def after_request(response):
@@ -53,13 +51,29 @@ def after_request(response):
     return response
 
 
+# Setting up app context for Interactive programming on Terminal
+@app.shell_context_processor
+def make_shell_context():
+    return {'db': db}
+
+
 @app.route("/", methods=['GET', 'POST'])
 @login_required
 def index():
     form = SearchForm()
     if form.validate_on_submit():
-        search_input = form.search.data
-        all_books = db.execute("SELECT isbn, title, author FROM books")
+        search_input = form.search.data.lower()
+
+        try:
+            result = db.execute("SELECT isbn, title, author FROM books WHERE LOWER(isbn) ILIKE :isbn OR LOWER(title) "
+                                "ILIKE :title OR "
+                                "LOWER(author) ILIKE :author",
+                                {'isbn':  '%' + search_input + "%", 'title':  '%' + search_input + "%", 'author':  '%' + search_input + "%"})
+            if result.rowcount == 0:
+                return "NO such book"
+            return render_template("test.html", result=result)
+        except ValueError:
+            return render_template("error.html")
 
     return render_template("index.html", form=form)
 
@@ -74,7 +88,7 @@ def register():
 
         password_hash = generate_password_hash(password)
         db.execute("INSERT INTO USERS(full_name, email, password) VALUES (:full_name, :email, :password)",
-                   {'full_name': full_name, 'email': email, 'password':password_hash})
+                   {'full_name': full_name, 'email': email, 'password': password_hash})
         db.commit()
         flash("Successfully Registered")
         print(f"New Successful registration {full_name}")
@@ -100,7 +114,6 @@ def login():
                 break
 
         if user_confirmed:
-
             session['user_id'] = user_id
             return redirect("/")
 
@@ -119,4 +132,4 @@ def logout():
 
 
 if __name__ == '__main__':
-    app.run(debug=True)
+    app.run()

@@ -15,4 +15,4 @@ class LoginForm(FlaskForm):
 
 
 class SearchForm(FlaskForm):
-    search = StringField(render_kw={'placeholder':'Search for books'})
+    search = StringField(render_kw={'placeholder':'Search for books'},  validators=[InputRequired()])
