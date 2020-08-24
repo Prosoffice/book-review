@@ -20,4 +20,4 @@ class SearchForm(FlaskForm):
 
 class ReviewForm(FlaskForm):
     rating = IntegerField("Rating", validators=[InputRequired()])
-    feedback = TextAreaField("Drop you 2cents on this book", validators=[InputRequired()])
+    feedback = TextAreaField("What do you think of this book?", validators=[InputRequired()])

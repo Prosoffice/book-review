@@ -26,6 +26,24 @@
         </tbody>
   </table>
     <h2 class="mt-5 mb-4" style="">Reviews</h2>
+        <table class="table table-striped">
+            <thead>
+              <tr>
+                <th scope="col">Name</th>
+                <th scope="col">Rating</th>
+                <th scope="col">Feedback</th>
+              </tr>
+            </thead>
+            <tbody>
+            {% for i in reviews %}
+              <tr>
+                <td>{{ i[0] }}</td>
+                <td>{{ i[1] }}</td>
+                <td>{{ i[2] }}</td>
+              </tr>
+            {% endfor %}
+            </tbody>
+        </table>
 
     <h3 class="mt-5 mb-4" style="">Leave a review</h3>
     <form action="" method="post">

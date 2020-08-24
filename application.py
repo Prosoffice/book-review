@@ -100,12 +100,13 @@ def book_detail(isbn):
         else:
             return "Sorry, you can only submit one review per post."
     row = db.execute("SELECT title, author, year FROM books WHERE isbn = :isbn", {'isbn': isbn}).fetchone()
-    reviews = db.execute("SELECT ratings, feedbacks FROM reviews")
+    reviews = db.execute("SELECT full_name, ratings, feedbacks FROM users INNER JOIN reviews ON users.id = "
+                         "reviews.user_id WHERE isbn = :isbn", {'isbn': isbn} ).fetchall()
     title = row[0]
     author = row[1]
     year = row[2]
     isbn = isbn
-    return  render_template("book-detail.html", title=title, author=author, year=year, isbn=isbn, form=form)
+    return  render_template("book-detail.html", title=title, author=author, year=year, isbn=isbn, form=form, reviews=reviews)
 
 
 @app.route("/register", methods=['GET', 'POST'])
