@@ -2,7 +2,7 @@ import os
 import csv
 
 # Flask Dependencies
-from flask import Flask, flash, redirect, render_template, session
+from flask import Flask, flash, redirect, render_template, session, url_for
 from flask_session import Session
 
 # Database Dependencies
@@ -65,10 +65,10 @@ def index():
         search_input = form.search.data.lower()
 
         try:
-            result = db.execute("SELECT isbn, title, author FROM books WHERE LOWER(isbn) ILIKE :isbn OR LOWER(title) "
+            result = db.execute("SELECT isbn, title, author, year FROM books WHERE LOWER(isbn) ILIKE :isbn OR LOWER(title) "
                                 "ILIKE :title OR "
-                                "LOWER(author) ILIKE :author",
-                                {'isbn':  '%' + search_input + "%", 'title':  '%' + search_input + "%", 'author':  '%' + search_input + "%"})
+                                "LOWER(author) ILIKE :author OR year = :year",
+                                {'isbn':  '%' + search_input + "%", 'title':  '%' + search_input + "%", 'author':  '%' + search_input + "%", 'year': search_input})
             if result.rowcount == 0:
                 return "NO such book"
             return render_template("test.html", result=result)
@@ -76,6 +76,36 @@ def index():
             return render_template("error.html")
 
     return render_template("index.html", form=form)
+
+
+@app.route("/<isbn>", methods=['GET', 'POST'])
+@login_required
+def book_detail(isbn):
+    form = ReviewForm()
+    if form.validate_on_submit():
+        #Check if user have left a review before
+        all_post_review_id = db.execute("SELECT user_id FROM reviews WHERE isbn = :isbn", {'isbn': isbn}).fetchall()
+        current_user = session['user_id']
+
+        user_present = db.execute("SELECT COUNT(*) FROM reviews WHERE user_id = :user_id AND isbn = :isbn" , {'user_id': current_user, 'isbn':isbn}).fetchone()
+        user_present = user_present[0]
+        print(user_present)
+        if int(user_present) == 0:
+            rating = form.rating.data
+            feedback = form.feedback.data
+            db.execute("INSERT INTO reviews(ratings, feedbacks, isbn, user_id) VALUES(:rating, :feedback, :isbn, "
+                       ":user_id)", {'rating': rating, 'feedback': feedback, 'isbn': isbn, 'user_id': current_user})
+            db.commit()
+            return redirect(url_for("book_detail", isbn=isbn))
+        else:
+            return "Sorry, you can only submit one review per post."
+    row = db.execute("SELECT title, author, year FROM books WHERE isbn = :isbn", {'isbn': isbn}).fetchone()
+    reviews = db.execute("SELECT ratings, feedbacks FROM reviews")
+    title = row[0]
+    author = row[1]
+    year = row[2]
+    isbn = isbn
+    return  render_template("book-detail.html", title=title, author=author, year=year, isbn=isbn, form=form)
 
 
 @app.route("/register", methods=['GET', 'POST'])
@@ -87,7 +117,7 @@ def register():
         password = form.password.data
 
         password_hash = generate_password_hash(password)
-        db.execute("INSERT INTO USERS(full_name, email, password) VALUES (:full_name, :email, :password)",
+        db.execute("INSERT INTO users(full_name, email, password) VALUES (:full_name, :email, :password)",
                    {'full_name': full_name, 'email': email, 'password': password_hash})
         db.commit()
         flash("Successfully Registered")
