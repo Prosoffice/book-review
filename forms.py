@@ -1,6 +1,6 @@
 from flask_wtf import FlaskForm
 from wtforms import StringField, PasswordField, IntegerField, TextAreaField
-from wtforms.validators import InputRequired
+from wtforms.validators import InputRequired, NumberRange
 
 
 class RegForm(FlaskForm):
@@ -15,9 +15,13 @@ class LoginForm(FlaskForm):
 
 
 class SearchForm(FlaskForm):
-    search = StringField(render_kw={'placeholder':'Search for books'},  validators=[InputRequired()])
+    search = StringField("",render_kw={'placeholder':'Search for books by title, author, year or Isbn'},  validators=[InputRequired()])
 
 
 class ReviewForm(FlaskForm):
-    rating = IntegerField("Rating", validators=[InputRequired()])
+    rating = IntegerField("Rating", validators=[InputRequired(),NumberRange(1,5)])
     feedback = TextAreaField("What do you think of this book?", validators=[InputRequired()])
+
+
+class ApiForm(FlaskForm):
+    search = StringField(render_kw={'placeholder':'123770018X'},  validators=[InputRequired()])

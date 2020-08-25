@@ -14,6 +14,9 @@
         <th scope="col">TITLE</th>
         <th scope="col">AUTHOR</th>
         <th scope="col">PUBLICATION YEAR</th>
+      {% if average_rating %}
+        <th scope="col">AVERAGE RATING</th>
+      {% endif %}
       </tr>
     </thead>
         <tbody>
@@ -22,10 +25,14 @@
             <td>{{ title }}</td>
             <td>{{ author }}</td>
             <td>{{ year }}</td>
+            {% if average_rating %}
+            <td>{{ average_rating }}</td>
+            {% endif %}
           </tr>
         </tbody>
   </table>
     <h2 class="mt-5 mb-4" style="">Reviews</h2>
+        {% if reviews %}
         <table class="table table-striped">
             <thead>
               <tr>
@@ -44,9 +51,12 @@
             {% endfor %}
             </tbody>
         </table>
+        {% else %}
+        <p>No reviews yet</p>
+        {% endif %}
 
     <h3 class="mt-5 mb-4" style="">Leave a review</h3>
-    <form action="" method="post">
+    <form action="" method="post" novalidate>
         {{ form.hidden_tag() }}
         <div class="form-group ">
             {{ wtf.form_field(form.rating) }}

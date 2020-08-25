@@ -1,5 +1,5 @@
 import os
-import csv
+import json
 
 # Flask Dependencies
 from flask import Flask, flash, redirect, render_template, session, url_for
@@ -13,7 +13,7 @@ from sqlalchemy.orm import scoped_session, sessionmaker
 from werkzeug.security import generate_password_hash, check_password_hash
 from flask_wtf.csrf import CSRFProtect
 from flask_bootstrap import Bootstrap
-from helpers import login_required
+from helpers import login_required, get_data
 from forms import *
 
 app = Flask(__name__)
@@ -57,6 +57,7 @@ def make_shell_context():
     return {'db': db}
 
 
+# Index
 @app.route("/", methods=['GET', 'POST'])
 @login_required
 def index():
@@ -65,10 +66,12 @@ def index():
         search_input = form.search.data.lower()
 
         try:
-            result = db.execute("SELECT isbn, title, author, year FROM books WHERE LOWER(isbn) ILIKE :isbn OR LOWER(title) "
-                                "ILIKE :title OR "
-                                "LOWER(author) ILIKE :author OR year = :year",
-                                {'isbn':  '%' + search_input + "%", 'title':  '%' + search_input + "%", 'author':  '%' + search_input + "%", 'year': search_input})
+            result = db.execute(
+                "SELECT isbn, title, author, year FROM books WHERE LOWER(isbn) ILIKE :isbn OR LOWER(title) "
+                "ILIKE :title OR "
+                "LOWER(author) ILIKE :author OR year = :year",
+                {'isbn': '%' + search_input + "%", 'title': '%' + search_input + "%",
+                 'author': '%' + search_input + "%", 'year': search_input})
             if result.rowcount == 0:
                 return "NO such book"
             return render_template("test.html", result=result)
@@ -78,16 +81,18 @@ def index():
     return render_template("index.html", form=form)
 
 
+# Book-detail
 @app.route("/<isbn>", methods=['GET', 'POST'])
 @login_required
 def book_detail(isbn):
     form = ReviewForm()
     if form.validate_on_submit():
-        #Check if user have left a review before
+        # Check if user have left a review before
         all_post_review_id = db.execute("SELECT user_id FROM reviews WHERE isbn = :isbn", {'isbn': isbn}).fetchall()
         current_user = session['user_id']
 
-        user_present = db.execute("SELECT COUNT(*) FROM reviews WHERE user_id = :user_id AND isbn = :isbn" , {'user_id': current_user, 'isbn':isbn}).fetchone()
+        user_present = db.execute("SELECT COUNT(*) FROM reviews WHERE user_id = :user_id AND isbn = :isbn",
+                                  {'user_id': current_user, 'isbn': isbn}).fetchone()
         user_present = user_present[0]
         print(user_present)
         if int(user_present) == 0:
@@ -99,16 +104,27 @@ def book_detail(isbn):
             return redirect(url_for("book_detail", isbn=isbn))
         else:
             return "Sorry, you can only submit one review per post."
+
+    # This block is responsible for fetching the book details from Goodreads API
+    api_response = get_data(isbn)
+    if api_response:
+        average_rating = api_response.get("average_rating")
+    else:
+        average_rating = None
+
+    # This block is responsible for fetching the book details form the database
     row = db.execute("SELECT title, author, year FROM books WHERE isbn = :isbn", {'isbn': isbn}).fetchone()
     reviews = db.execute("SELECT full_name, ratings, feedbacks FROM users INNER JOIN reviews ON users.id = "
-                         "reviews.user_id WHERE isbn = :isbn", {'isbn': isbn} ).fetchall()
+                         "reviews.user_id WHERE isbn = :isbn", {'isbn': isbn}).fetchall()
     title = row[0]
     author = row[1]
     year = row[2]
     isbn = isbn
-    return  render_template("book-detail.html", title=title, author=author, year=year, isbn=isbn, form=form, reviews=reviews)
+    return render_template("book-detail.html", title=title, author=author, year=year, isbn=isbn, form=form,
+                           reviews=reviews, average_rating=average_rating)
 
 
+# Register
 @app.route("/register", methods=['GET', 'POST'])
 def register():
     form = RegForm()
@@ -127,6 +143,7 @@ def register():
     return render_template("register.html", form=form)
 
 
+# Login
 @app.route("/login", methods=['GET', 'POST'])
 def login():
     form = LoginForm()
@@ -151,6 +168,7 @@ def login():
     return render_template("login.html", form=form)
 
 
+# Logout
 @app.route("/logout", methods=["GET"])
 def logout():
     """Log user out"""
@@ -160,6 +178,36 @@ def logout():
 
     # Redirect user to login form
     return redirect("/login")
+
+
+# API ACCESS
+@app.route("/api/<isbn>", methods=['GET', 'POST'])
+@login_required
+def api_access(isbn):
+    try:
+        book = db.execute("SELECT books.title, books.author, books.isbn, books.year, COUNT(ratings), AVG(ratings) FROM "
+                          "books INNER JOIN reviews  ON books.isbn=reviews.isbn WHERE books.isbn=:isbn GROUP BY "
+                          "books.title, books.author, books.isbn, books.year", {'isbn': isbn}).fetchone()
+
+        response = {}
+        response["title"] = book[0]
+        response["author"] = book[1]
+        response["year"] = book[3]
+        response["isbn"] = book[2]
+        response["review_count"] = book[4]
+
+        avg_rat = book[4]
+        avg_rat = str(round(avg_rat, 2))
+
+        response["average_score"] = avg_rat
+        print(response)
+
+        response = json.dumps(response)
+        print(response)
+
+        return response
+    except (TypeError, KeyError, AttributeError, ValueError):
+        return "This isbn does not exist in our database"
 
 
 if __name__ == '__main__':
